@@ -294,6 +294,8 @@ make_dev_nodes() {
 
 	mknod -m 666 dev/tty c 5 0
 	chown 0:5 dev/tty  # root:tty
+	# Fix : mknod File Exist!
+	[ -e "dev/console" ] && rm -rf dev/console
 	mknod -m 620 dev/console c 5 1
 	mknod -m 666 dev/ptmx c 5 2
 	chown 0:5 dev/ptmx  # root:tty
