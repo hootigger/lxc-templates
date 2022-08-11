@@ -297,8 +297,8 @@ configure_debian_systemd()
 
     # This function has been copied and adapted from lxc-fedora
     rm -f "${rootfs}/etc/systemd/system/default.target"
-    chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/udev.service
-    chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/systemd-udevd.service
+    [ ! -f "$rootfs/etc/systemd/system/udev.service" ] && chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/udev.service
+    [ ! -f "$rootfs/etc/systemd/system/systemd-udev.service" ] && chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/systemd-udevd.service
     chroot "${rootfs}" ln -s /lib/systemd/system/multi-user.target /etc/systemd/system/default.target
     # Setup getty service on the ttys we are going to allow in the
     # default config.  Number should match lxc.tty.max
@@ -881,6 +881,7 @@ config="$path/config"
 if [ -z "$rootfs" ]; then
     if grep -q '^lxc.rootfs.path' "$config" 2> /dev/null ; then
         rootfs=$(awk -F= '/^lxc.rootfs.path[ \t]+=/{ print $2 }' "$config")
+	rootfs=$(echo $rootfs | awk '{gsub(/^\s+|\s+$/, "");print}')
     else
         rootfs=$path/rootfs
     fi
