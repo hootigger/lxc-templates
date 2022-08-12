@@ -26,12 +26,20 @@ echo "source ~/.oh-my-zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlightin
 git clone https://github.com/zsh-users/zsh-autosuggestions $HOME/.oh-my-zsh/plugins/zsh-autosuggestions
 sed -i 's/plugins=(git)/plugins=(git\nz\nzsh-autosuggestions\nzsh-syntax-highlighting\n)/' $HOME/.zshrc
 cat /etc/profile.d/alias_bash.sh >> $HOME/.zshrc
-clear
-zsh
+#clear
+#zsh
 EOF
 	chmod +x $1/usr/bin/setup-zsh
-	echo -e "\nInstall oh-my-zsh by exec setup-zsh, Enjoy it!\n" >> $1/etc/motd
+	# enable dns
+	cp -f /etc/resolv.conf $1/etc/resolv.conf
+	# install oh my zsh
+	chroot $1 setup-zsh
 
+
+
+
+	# 清理dns文件 & zsh
+	rm -rf $1/etc/resolv.conf && rm -rf $1/usr/bin/setup-zsh
 }
 
 
