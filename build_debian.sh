@@ -4,6 +4,7 @@ SHELL_DIR=$(cd "$(dirname "$0")";pwd)
 OUT=$SHELL_DIR/.build/debian
 mkdir -p $OUT && rm -rf $OUT/* 
 PACKAGE="tcpdump net-tools dnsutils htop curl zsh git vim less iputils-ping"
+DEBIAN_VERSION=11
 
 function process() {
 	# 更改默认zsh登录
@@ -28,10 +29,12 @@ EOF
 	cp -f /etc/resolv.conf $1/etc/resolv.conf
 	# install oh my zsh
 	chroot $1 setup-zsh
-
-
-
-
+	
+	# ssh root login
+	chroot $1 sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+	
+	# debian version
+	DEBIAN_VERSION=$(chroot $1 cat /etc/debian_version)
 	# 清理dns文件 & zsh
 	rm -rf $1/etc/resolv.conf && rm -rf $1/usr/bin/setup-zsh
 }
@@ -44,6 +47,6 @@ if [[ !  $? -eq 0 ]]; then
 	exit -1
 else
 	process $OUT/rootfs
-	cd $SHELL_DIR/.build && tar -zcf debian-11-custom-base.tar.gz -C $OUT/rootfs . 
+	cd $SHELL_DIR/.build && tar -zcf debian-${DEBIAN_VERSION:-11.5}-custom-base.tar.gz -C $OUT/rootfs . 
 fi
 
