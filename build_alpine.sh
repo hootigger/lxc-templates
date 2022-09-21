@@ -3,7 +3,8 @@
 SHELL_DIR=$(cd "$(dirname "$0")";pwd)
 OUT=$SHELL_DIR/.build/alpine
 mkdir -p $OUT && rm -rf $OUT/* && mkdir -p $OUT/rootfs
-PACKAGE="tcpdump net-tools bind-tools htop curl zsh git vim"
+PACKAGE="tcpdump net-tools bind-tools htop curl zsh git vim openssh"
+VERSION=3.16
 
 function process() {
 	# 更改默认zsh登录
@@ -35,7 +36,14 @@ EOF
 	# install oh my zsh
 	chroot $1 setup-zsh
 
+	# ssh root login
+        chroot $1 sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 
+	# auto start sshd
+	chroot $1 rc-update add sshd 
+
+	# os version
+	VERSION=$(chroot $1 cat /etc/alpine-release)
 
 
 	# 清理dns文件 & zsh
@@ -50,6 +58,6 @@ if [[ !  $? -eq 0 ]]; then
 	exit -1
 else
 	process $OUT/rootfs
-	cd $SHELL_DIR/.build && tar -zcf alpine-3.16-custom-base.tar.gz -C $OUT/rootfs . 
+	cd $SHELL_DIR/.build && tar -zcf alpine-${VERSION:-3.16}-custom-base.tar.gz -C $OUT/rootfs . 
 fi
 
