@@ -33,6 +33,9 @@ EOF
 	# ssh root login
 	chroot $1 sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 	
+	# 更改镜像源
+	chroot $1 sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+	chroot $1 sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' /etc/apt/sources.list
 	# debian version
 	DEBIAN_VERSION=$(chroot $1 cat /etc/debian_version)
 	# 清理dns文件 & zsh
