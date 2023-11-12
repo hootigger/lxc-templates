@@ -3,8 +3,8 @@
 SHELL_DIR=$(cd "$(dirname "$0")";pwd)
 OUT=$SHELL_DIR/.build/debian
 mkdir -p $OUT && rm -rf $OUT/* 
-PACKAGE="tcpdump net-tools dnsutils htop curl zsh git vim less iputils-ping"
-DEBIAN_VERSION=11
+PACKAGE="tcpdump net-tools dnsutils htop curl zsh git vim less iputils-ping command-not-found"
+DEBIAN_VERSION=12
 
 function process() {
 	# 更改默认zsh登录
@@ -23,6 +23,7 @@ sed -i 's/plugins=(git)/plugins=(git\nz\nzsh-autosuggestions\nzsh-syntax-highlig
 echo "export LS_OPTIONS='--color=auto'" >> $HOME/.zshrc
 echo "alias ls='ls \$LS_OPTIONS'" >> $HOME/.zshrc
 echo "alias ll='ls \$LS_OPTIONS -alh'" >> $HOME/.zshrc
+echo "source /etc/zsh_command_not_found" >> $HOME/.zshrc
 EOF
 	chmod +x $1/usr/bin/setup-zsh
 	# enable dns
@@ -50,6 +51,6 @@ if [[ !  $? -eq 0 ]]; then
 	exit -1
 else
 	process $OUT/rootfs
-	cd $SHELL_DIR/.build && tar -zcf debian-${DEBIAN_VERSION:-11.5}-custom-base.tar.gz -C $OUT/rootfs . 
+	cd $SHELL_DIR/.build && tar -zcf debian-${DEBIAN_VERSION:-12.2}-custom-base.tar.gz -C $OUT/rootfs . 
 fi
 
