@@ -44,7 +44,7 @@ EOF
 }
 
 
-$SHELL_DIR/templates/lxc-debian --name debian --path $OUT --packages "$PACKAGE" $@
+$SHELL_DIR/templates/lxc-debian --name debian --release bookworm --path $OUT --packages "$PACKAGE" $@
 
 if [[ !  $? -eq 0 ]]; then
 	echo "错误!"
