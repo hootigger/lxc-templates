@@ -888,7 +888,7 @@ if [ -n "$authkey" ]; then
 fi
 
 release=${release:-stable}
-permanent_releases=('stable' 'testing' 'sid' 'unstable')
+permanent_releases=('oldoldstable' 'oldstable' 'stable' 'testing' 'sid' 'unstable')
 if [[ ! "${permanent_releases[*]}" =~ (^|[^[:alpha:]])$release([^[:alpha:]]|$) ]]; then
     if ! release_info "${MIRROR}"; then
         echo "Invalid release ${release} (not found in mirror)"
