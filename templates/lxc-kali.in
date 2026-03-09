@@ -334,13 +334,14 @@ download_kali()
 {
     init=init
     iproute=iproute2
+    dhcpclient=dhcpcd-base
     packages=\
 $init,\
 ifupdown,\
 locales,\
 ca-certificates,\
 dialog,\
-isc-dhcp-client,\
+$dhcpclient,\
 netbase,\
 net-tools,\
 $iproute,\
