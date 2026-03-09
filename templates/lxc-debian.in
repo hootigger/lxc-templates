@@ -240,7 +240,7 @@ write_sourceslist()
     if [ "$mainonly" = 1 ]; then
       non_main=''
     else
-        case "$release" in
+        case "$distro_codename" in
           wheezy|jessie|stretch|buster|bullseye)
             non_main=' contrib non-free'
             ;;
