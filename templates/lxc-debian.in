@@ -77,6 +77,8 @@ release_info() {
         local release_file=$(wget "${1}/dists/${release}/Release" -O - --quiet 2> /dev/null)
         distro_suite=${release_file#*Suite: }
         distro_suite=${distro_suite%%$'\n'*}
+        distro_codename=${release_file#*Codename: }
+        distro_codename=${distro_codename%%$'\n'*}
         return 0
     fi
     return 1
@@ -374,13 +376,22 @@ download_debian()
         iproute=iproute2
         ;;
     esac
+    # Check by codename as stable and testing are moving targets
+    case "$distro_codename" in
+      wheezy|jessie|stretch|buster|bullseye|bookworm|trixie)
+        dhcpclient=isc-dhcp-client
+        ;;
+      *)
+        dhcpclient=dhcpcd-base
+        ;;
+    esac
     packages=\
 $init,\
 ifupdown,\
 locales,\
 ca-certificates,\
 dialog,\
-isc-dhcp-client,\
+$dhcpclient,\
 netbase,\
 net-tools,\
 $iproute,\
