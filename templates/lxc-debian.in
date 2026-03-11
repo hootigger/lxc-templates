@@ -77,6 +77,8 @@ release_info() {
         local release_file=$(wget "${1}/dists/${release}/Release" -O - --quiet 2> /dev/null)
         distro_suite=${release_file#*Suite: }
         distro_suite=${distro_suite%%$'\n'*}
+        distro_codename=${release_file#*Codename: }
+        distro_codename=${distro_codename%%$'\n'*}
         return 0
     fi
     return 1
@@ -238,7 +240,7 @@ write_sourceslist()
     if [ "$mainonly" = 1 ]; then
       non_main=''
     else
-        case "$release" in
+        case "$distro_codename" in
           wheezy|jessie|stretch|buster|bullseye)
             non_main=' contrib non-free'
             ;;
@@ -374,13 +376,22 @@ download_debian()
         iproute=iproute2
         ;;
     esac
+    # Check by codename as stable and testing are moving targets
+    case "$distro_codename" in
+      wheezy|jessie|stretch|buster|bullseye|bookworm|trixie)
+        dhcpclient=isc-dhcp-client
+        ;;
+      *)
+        dhcpclient=dhcpcd-base
+        ;;
+    esac
     packages=\
 $init,\
 ifupdown,\
 locales,\
 ca-certificates,\
 dialog,\
-isc-dhcp-client,\
+$dhcpclient,\
 netbase,\
 net-tools,\
 $iproute,\
@@ -806,7 +817,7 @@ if ! wget -q -O /dev/null "${release_file}"; then
     fi
     packages="debian-ports-archive-keyring,${packages}"
   else
-    echo "Error: ${arch}/${release} not available on mirror ${DEBIAN_MIRROR}"
+    echo "Error: ${arch}/${release} not available on mirror ${MIRROR}"
     exit 1
   fi
 fi
@@ -877,7 +888,7 @@ if [ -n "$authkey" ]; then
 fi
 
 release=${release:-stable}
-permanent_releases=('stable' 'testing' 'sid' 'unstable')
+permanent_releases=('oldoldstable' 'oldstable' 'stable' 'testing' 'sid' 'unstable')
 if [[ ! "${permanent_releases[*]}" =~ (^|[^[:alpha:]])$release([^[:alpha:]]|$) ]]; then
     if ! release_info "${MIRROR}"; then
         echo "Invalid release ${release} (not found in mirror)"
