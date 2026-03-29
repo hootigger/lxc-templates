@@ -308,8 +308,12 @@ configure_debian_systemd()
 
     # This function has been copied and adapted from lxc-fedora
     rm -f "${rootfs}/etc/systemd/system/default.target"
-    chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/udev.service
-    chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/systemd-udevd.service
+    if [ ! -e "$rootfs/etc/systemd/system/udev.service" ] && [ ! -L "$rootfs/etc/systemd/system/udev.service" ]; then
+        chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/udev.service
+    fi
+    if [ ! -e "$rootfs/etc/systemd/system/systemd-udevd.service" ] && [ ! -L "$rootfs/etc/systemd/system/systemd-udevd.service" ]; then
+        chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/systemd-udevd.service
+    fi
     chroot "${rootfs}" ln -s /lib/systemd/system/multi-user.target /etc/systemd/system/default.target
     # Setup getty service on the ttys we are going to allow in the
     # default config.  Number should match lxc.tty.max
@@ -704,7 +708,7 @@ Options :
   -S, --auth-key=KEYFILE SSH public key to inject into the container as the root user.
   -a, --arch=ARCH        The container architecture. Can be one of: i686, x86_64,
                          amd64, armhf, armel, powerpc. Defaults to host arch.
-  -r, --release=RELEASE  Debian release. Can be one of: buster, bullseye, bookworm, trixie,
+  -r, --release=RELEASE  Debian release. Can be one of: buster, bullseye, bookworm, trixie, forky,
                          testing, sid. Defaults to current stable.
   --mirror=MIRROR        Debian mirror to use during installation. Overrides the MIRROR
                          environment variable (see below).
