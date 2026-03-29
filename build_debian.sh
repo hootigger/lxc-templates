@@ -45,7 +45,9 @@ EOF
 		sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' $1/etc/apt/sources.list.d/debian.sources
 	fi
 	# debian version
-	DETECTED_DEBIAN_VERSION=$(chroot "$1" cat /etc/debian_version 2>/dev/null) && ARCHIVE_DEBIAN_VERSION=$DETECTED_DEBIAN_VERSION
+	if DETECTED_DEBIAN_VERSION=$(chroot "$1" cat /etc/debian_version 2>/dev/null); then
+		ARCHIVE_DEBIAN_VERSION=$DETECTED_DEBIAN_VERSION
+	fi
 	# 清理dns文件 & zsh
 	rm -rf $1/etc/resolv.conf && rm -rf $1/usr/bin/setup-zsh
 }
