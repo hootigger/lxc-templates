@@ -3,8 +3,8 @@
 SHELL_DIR=$(cd "$(dirname "$0")";pwd)
 OUT=$SHELL_DIR/.build/alpine
 mkdir -p $OUT && rm -rf $OUT/* && mkdir -p $OUT/rootfs
-PACKAGE="tcpdump net-tools bind-tools htop curl zsh git vim openssh"
-VERSION=3.16
+PACKAGE="tcpdump net-tools bind-tools htop curl zsh git vim less openssh"
+VERSION=3.21
 
 function process() {
 	# 更改默认zsh登录
@@ -18,13 +18,13 @@ EOF
 	echo "export PS1='\u@\h:\w $ '" > $1/etc/profile.d/ps.sh.disable
 	# oh-my-zsh
 	cat <<'EOF' > $1/usr/bin/setup-zsh
-#!/bin/sh -x
+#!/bin/sh -ex
 #sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-git clone https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh
+git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh || exit 1
 cp ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $HOME/.oh-my-zsh/plugins/zsh-syntax-highlighting
+git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git $HOME/.oh-my-zsh/plugins/zsh-syntax-highlighting || exit 1
 echo "source ~/.oh-my-zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" >> $HOME/.zshrc
-git clone https://github.com/zsh-users/zsh-autosuggestions $HOME/.oh-my-zsh/plugins/zsh-autosuggestions
+git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions $HOME/.oh-my-zsh/plugins/zsh-autosuggestions || exit 1
 sed -i 's/plugins=(git)/plugins=(git\nz\nzsh-autosuggestions\nzsh-syntax-highlighting\n)/' $HOME/.zshrc
 cat /etc/profile.d/alias_bash.sh >> $HOME/.zshrc
 #clear
@@ -34,30 +34,29 @@ EOF
 	# enable dns
 	cp -f /etc/resolv.conf $1/etc/resolv.conf
 	# install oh my zsh
-	chroot $1 setup-zsh
+	chroot $1 setup-zsh || { echo "setup-zsh 失败!"; exit 1; }
 
 	# ssh root login
-        chroot $1 sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+	chroot $1 sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 
 	# auto start sshd
-	chroot $1 rc-update add sshd 
+	chroot $1 rc-update add sshd || { echo "rc-update add sshd 失败!"; exit 1; }
 
 	# os version
 	VERSION=$(chroot $1 cat /etc/alpine-release)
-
 
 	# 清理dns文件 & zsh
 	rm -rf $1/etc/resolv.conf && rm -rf $1/usr/bin/setup-zsh
 }
 
 
-$SHELL_DIR/templates/lxc-alpine --name alpine --path $OUT $PACKAGE $@
+$SHELL_DIR/templates/lxc-alpine --name alpine --path $OUT "$@" -- $PACKAGE
 
 if [[ !  $? -eq 0 ]]; then
 	echo "错误!"
 	exit -1
 else
 	process $OUT/rootfs
-	cd $SHELL_DIR/.build && tar -zcf alpine-${VERSION:-3.16}-custom-base.tar.gz -C $OUT/rootfs . 
+	cd $SHELL_DIR/.build && tar -zcf alpine-${VERSION:-3.21}-custom-base.tar.gz -C $OUT/rootfs . 
 fi
 
