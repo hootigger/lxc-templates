@@ -4,20 +4,21 @@ SHELL_DIR=$(cd "$(dirname "$0")";pwd)
 OUT=$SHELL_DIR/.build/debian
 mkdir -p $OUT && rm -rf $OUT/* 
 PACKAGE="tcpdump net-tools dnsutils htop curl zsh git vim less iputils-ping command-not-found"
-DEBIAN_VERSION=12
+DEBIAN_RELEASE=bookworm
+ARCHIVE_DEBIAN_VERSION=13.4
 
 function process() {
 	# 更改默认zsh登录
 	sed -i 's/\/bin\/bash/\/bin\/zsh/' $1/etc/passwd
 	# oh-my-zsh
 	cat <<'EOF' > $1/usr/bin/setup-zsh
-#!/bin/sh -x
+#!/bin/sh -ex
 #sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-git clone https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh
+git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh || exit 1
 cp ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $HOME/.oh-my-zsh/plugins/zsh-syntax-highlighting
+git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git $HOME/.oh-my-zsh/plugins/zsh-syntax-highlighting || exit 1
 echo "source ~/.oh-my-zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" >> $HOME/.zshrc
-git clone https://github.com/zsh-users/zsh-autosuggestions $HOME/.oh-my-zsh/plugins/zsh-autosuggestions
+git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions $HOME/.oh-my-zsh/plugins/zsh-autosuggestions || exit 1
 sed -i 's/plugins=(git)/plugins=(git\nz\nzsh-autosuggestions\nzsh-syntax-highlighting\n)/' $HOME/.zshrc
 
 echo "export LS_OPTIONS='--color=auto'" >> $HOME/.zshrc
@@ -29,28 +30,35 @@ EOF
 	# enable dns
 	cp -f /etc/resolv.conf $1/etc/resolv.conf
 	# install oh my zsh
-	chroot $1 setup-zsh
+	chroot $1 setup-zsh || { echo "setup-zsh 失败!"; exit 1; }
 	
 	# ssh root login
 	chroot $1 sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 	
-	# 更改镜像源
-	chroot $1 sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
-	chroot $1 sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' /etc/apt/sources.list
+	# 更改镜像源 (兼容传统 sources.list 与 Debian 12+ DEB822 格式)
+	if [ -f "$1/etc/apt/sources.list" ]; then
+		sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' $1/etc/apt/sources.list
+		sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' $1/etc/apt/sources.list
+	fi
+	if [ -f "$1/etc/apt/sources.list.d/debian.sources" ]; then
+		sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' $1/etc/apt/sources.list.d/debian.sources
+		sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' $1/etc/apt/sources.list.d/debian.sources
+	fi
 	# debian version
-	DEBIAN_VERSION=$(chroot $1 cat /etc/debian_version)
+	if DETECTED_DEBIAN_VERSION=$(chroot "$1" cat /etc/debian_version 2>/dev/null); then
+		ARCHIVE_DEBIAN_VERSION=$DETECTED_DEBIAN_VERSION
+	fi
 	# 清理dns文件 & zsh
 	rm -rf $1/etc/resolv.conf && rm -rf $1/usr/bin/setup-zsh
 }
 
 
-$SHELL_DIR/templates/lxc-debian --name debian --release bookworm --path $OUT --packages "$PACKAGE" $@
+$SHELL_DIR/templates/lxc-debian --name debian --release "$DEBIAN_RELEASE" --path "$OUT" --packages "$PACKAGE" "$@"
 
 if [[ !  $? -eq 0 ]]; then
 	echo "错误!"
 	exit -1
 else
-	process $OUT/rootfs
-	cd $SHELL_DIR/.build && tar -zcf debian-${DEBIAN_VERSION:-12.2}-custom-base.tar.gz -C $OUT/rootfs . 
+	process "$OUT/rootfs"
+	cd "$SHELL_DIR/.build" && tar -zcf "debian-${ARCHIVE_DEBIAN_VERSION}-custom-base.tar.gz" -C "$OUT/rootfs" . 
 fi
-
