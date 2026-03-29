@@ -79,6 +79,8 @@ release_info() {
         local release_file=$(wget "${1}/dists/${release}/Release" -O - --quiet 2> /dev/null)
         distro_suite=${release_file#*Suite: }
         distro_suite=${distro_suite%%$'\n'*}
+        distro_codename=${release_file#*Codename: }
+        distro_codename=${distro_codename%%$'\n'*}
         return 0
     fi
     return 1
@@ -240,7 +242,14 @@ write_sourceslist()
     if [ "$mainonly" = 1 ]; then
       non_main=''
     else
-      non_main=' contrib non-free'
+        case "$distro_codename" in
+          wheezy|jessie|stretch|buster|bullseye)
+            non_main=' contrib non-free'
+            ;;
+          *)
+            non_main=' contrib non-free non-free-firmware'
+            ;;
+        esac
     fi
 
     cat >> "${rootfs}/etc/apt/sources.list" << EOF
@@ -299,8 +308,12 @@ configure_debian_systemd()
 
     # This function has been copied and adapted from lxc-fedora
     rm -f "${rootfs}/etc/systemd/system/default.target"
-    [ ! -f "$rootfs/etc/systemd/system/udev.service" ] && chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/udev.service
-    [ ! -f "$rootfs/etc/systemd/system/systemd-udev.service" ] && chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/systemd-udevd.service
+    if [ ! -e "$rootfs/etc/systemd/system/udev.service" ] && [ ! -L "$rootfs/etc/systemd/system/udev.service" ]; then
+        chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/udev.service
+    fi
+    if [ ! -e "$rootfs/etc/systemd/system/systemd-udevd.service" ] && [ ! -L "$rootfs/etc/systemd/system/systemd-udevd.service" ]; then
+        chroot "${rootfs}" ln -s /dev/null /etc/systemd/system/systemd-udevd.service
+    fi
     chroot "${rootfs}" ln -s /lib/systemd/system/multi-user.target /etc/systemd/system/default.target
     # Setup getty service on the ttys we are going to allow in the
     # default config.  Number should match lxc.tty.max
@@ -369,13 +382,22 @@ download_debian()
         iproute=iproute2
         ;;
     esac
+    # Check by codename as stable and testing are moving targets
+    case "$distro_codename" in
+      wheezy|jessie|stretch|buster|bullseye|bookworm|trixie)
+        dhcpclient=isc-dhcp-client
+        ;;
+      *)
+        dhcpclient=dhcpcd-base
+        ;;
+    esac
     packages=\
 $init,\
 ifupdown,\
 locales,\
 ca-certificates,\
 dialog,\
-isc-dhcp-client,\
+$dhcpclient,\
 netbase,\
 net-tools,\
 $iproute,\
@@ -550,7 +572,7 @@ copy_configuration()
     # if there is exactly one veth network entry, make sure it has an
     # associated hwaddr.
     nics=$(grep -ce '^lxc\.net\.0\.type[ \t]*=[ \t]*veth' "$path/config")
-    if [[ "$nics" -eq 1 ]]; then
+    if [ "$nics" -eq 1 ]; then
         grep -q "^lxc.net.0.hwaddr" "$path/config" || sed -i -e "/^lxc\.net\.0\.type[ \t]*=[ \t]*veth/a lxc.net.0.hwaddr = 00:16:3e:$(openssl rand -hex 3| sed 's/\(..\)/\1:/g; s/.$//')" "$path/config"
     fi
 
@@ -686,8 +708,8 @@ Options :
   -S, --auth-key=KEYFILE SSH public key to inject into the container as the root user.
   -a, --arch=ARCH        The container architecture. Can be one of: i686, x86_64,
                          amd64, armhf, armel, powerpc. Defaults to host arch.
-  -r, --release=RELEASE  Debian release. Can be one of: wheezy, jessie, stretch, buster, sid.
-                         Defaults to current stable.
+  -r, --release=RELEASE  Debian release. Can be one of: buster, bullseye, bookworm, trixie, forky,
+                         testing, sid. Defaults to current stable.
   --mirror=MIRROR        Debian mirror to use during installation. Overrides the MIRROR
                          environment variable (see below).
   --keyring=KEYRING      GPG keyring to authenticate the repository against.
@@ -698,7 +720,7 @@ Options :
   --packages=PACKAGE_NAME1,PACKAGE_NAME2,...
                          List of additional packages to install. Comma separated, without space.
   -c, --clean            only clean up the cache and terminate
-  --enable-non-free      include also Debian's contrib and non-free repositories.
+  --enable-non-free      include also Debian's contrib, non-free and non-free-firmware repositories.
   -I|--interpreter-path=INTERPRETER-PATH
                          Path of the binfmt interpreter to copy to the rootfs
   -F | --flush-cache     Flush the debian release cache
@@ -788,7 +810,7 @@ if [ "$arch" = "x86_64" ]; then
 fi
 
 
-release_file=${DEBIAN_MIRROR}/dists/${release}/main/binary-${arch}/Release
+release_file=${MIRROR}/dists/${release}/main/binary-${arch}/Release
 if ! wget -q -O /dev/null "${release_file}"; then
   if [ "${release}" = unstable ] || [ "${release}" = sid ]; then
     echo "${arch}/${release} not available on mirror, trying debian ports"
@@ -801,7 +823,7 @@ if ! wget -q -O /dev/null "${release_file}"; then
     fi
     packages="debian-ports-archive-keyring,${packages}"
   else
-    echo "Error: ${arch}/${release} not available on mirror ${DEBIAN_MIRROR}"
+    echo "Error: ${arch}/${release} not available on mirror ${MIRROR}"
     exit 1
   fi
 fi
@@ -872,7 +894,7 @@ if [ -n "$authkey" ]; then
 fi
 
 release=${release:-stable}
-permanent_releases=('stable' 'testing' 'sid' 'unstable')
+permanent_releases=('oldoldstable' 'oldstable' 'stable' 'testing' 'sid' 'unstable')
 if [[ ! "${permanent_releases[*]}" =~ (^|[^[:alpha:]])$release([^[:alpha:]]|$) ]]; then
     if ! release_info "${MIRROR}"; then
         echo "Invalid release ${release} (not found in mirror)"
@@ -887,7 +909,6 @@ config="$path/config"
 if [ -z "$rootfs" ]; then
     if grep -q '^lxc.rootfs.path' "$config" 2> /dev/null ; then
         rootfs=$(awk -F= '/^lxc.rootfs.path[ \t]+=/{ print $2 }' "$config")
-	rootfs=$(echo $rootfs | awk '{gsub(/^\s+|\s+$/, "");print}')
     else
         rootfs=$path/rootfs
     fi
