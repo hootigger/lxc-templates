@@ -4,7 +4,22 @@ SHELL_DIR=$(cd "$(dirname "$0")";pwd)
 OUT=$SHELL_DIR/.build/debian
 mkdir -p $OUT && rm -rf $OUT/* 
 PACKAGE="tcpdump net-tools dnsutils htop curl zsh git vim less iputils-ping command-not-found"
-DEBIAN_VERSION=12
+DEBIAN_RELEASE=bookworm
+
+function fallback_debian_version() {
+	case "$1" in
+		bookworm) echo 12 ;;
+		bullseye) echo 11 ;;
+		buster) echo 10 ;;
+		stretch) echo 9 ;;
+		jessie) echo 8 ;;
+		wheezy) echo 7 ;;
+		testing|unstable|sid) echo "$1" ;;
+		*) echo "$1" ;;
+	esac
+}
+
+ARCHIVE_DEBIAN_VERSION=$(fallback_debian_version "$DEBIAN_RELEASE")
 
 function process() {
 	# 更改默认zsh登录
@@ -44,19 +59,18 @@ EOF
 		sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' $1/etc/apt/sources.list.d/debian.sources
 	fi
 	# debian version
-	DEBIAN_VERSION=$(chroot $1 cat /etc/debian_version)
+	DETECTED_DEBIAN_VERSION=$(chroot "$1" cat /etc/debian_version 2>/dev/null) && ARCHIVE_DEBIAN_VERSION=$DETECTED_DEBIAN_VERSION
 	# 清理dns文件 & zsh
 	rm -rf $1/etc/resolv.conf && rm -rf $1/usr/bin/setup-zsh
 }
 
 
-$SHELL_DIR/templates/lxc-debian --name debian --release bookworm --path $OUT --packages "$PACKAGE" "$@"
+$SHELL_DIR/templates/lxc-debian --name debian --release "$DEBIAN_RELEASE" --path "$OUT" --packages "$PACKAGE" "$@"
 
 if [[ !  $? -eq 0 ]]; then
 	echo "错误!"
 	exit -1
 else
-	process $OUT/rootfs
-	cd $SHELL_DIR/.build && tar -zcf debian-${DEBIAN_VERSION:-12}-custom-base.tar.gz -C $OUT/rootfs . 
+	process "$OUT/rootfs"
+	cd "$SHELL_DIR/.build" && tar -zcf "debian-${ARCHIVE_DEBIAN_VERSION}-custom-base.tar.gz" -C "$OUT/rootfs" . 
 fi
-
