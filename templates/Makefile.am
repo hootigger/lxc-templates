@@ -3,6 +3,7 @@ templatesdir=@LXCTEMPLATEDIR@
 templates_SCRIPTS = \
 	lxc-alpine \
 	lxc-altlinux \
+	lxc-anolis \
 	lxc-archlinux \
 	lxc-centos \
 	lxc-cirros \
@@ -12,6 +13,7 @@ templates_SCRIPTS = \
 	lxc-fedora-legacy \
 	lxc-gentoo \
 	lxc-kali \
+	lxc-openeuler \
 	lxc-openmandriva \
 	lxc-opensuse \
 	lxc-oracle \
