@@ -5,21 +5,7 @@ OUT=$SHELL_DIR/.build/debian
 mkdir -p $OUT && rm -rf $OUT/* 
 PACKAGE="tcpdump net-tools dnsutils htop curl zsh git vim less iputils-ping command-not-found"
 DEBIAN_RELEASE=bookworm
-
-function fallback_debian_version() {
-	case "$1" in
-		bookworm) echo 12 ;;
-		bullseye) echo 11 ;;
-		buster) echo 10 ;;
-		stretch) echo 9 ;;
-		jessie) echo 8 ;;
-		wheezy) echo 7 ;;
-		testing|unstable|sid) echo "$1" ;;
-		*) echo "$1" ;;
-	esac
-}
-
-ARCHIVE_DEBIAN_VERSION=$(fallback_debian_version "$DEBIAN_RELEASE")
+ARCHIVE_DEBIAN_VERSION=13.4
 
 function process() {
 	# 更改默认zsh登录
